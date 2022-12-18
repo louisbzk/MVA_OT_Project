@@ -22,22 +22,17 @@ def osborne(
         * `random` : at every step, the update coordinate is chosen randomly
     :return:
     """
-    # Set the diagonal to zero (the balancing algorithm does not depend on the diagonal at all)
-    _mat = mat
-    for i in range(mat.shape[0]):
-        _mat[i, i] = 0
-
     if method == 'cycle':
-        return cyclic_osborne(_mat, epsilon)
+        return cyclic_osborne(mat, epsilon)
 
     if method == 'greedy':
-        return greedy_osborne(_mat, epsilon)
+        return greedy_osborne(mat, epsilon)
 
     if method == 'random-cycle':
-        return random_cyclic_osborne(_mat, epsilon)
+        return random_cyclic_osborne(mat, epsilon)
 
     if method == 'random':
-        return random_osborne(_mat, epsilon)
+        return random_osborne(mat, epsilon)
 
 
 def osborne_update(balanced_mat: np.ndarray,
@@ -52,10 +47,6 @@ def osborne_update(balanced_mat: np.ndarray,
 
 
 def cyclic_osborne(mat: np.ndarray, epsilon: float):
-    """
-    Also known as Round-Robin Cyclic Osborne : the classical algorithm used in most linear algebra libraries
-    (namely, LAPACK).
-    """
     n = mat.shape[0]
     balance = np.zeros(n, dtype=float)
     balanced_mat = np.diag(np.exp(balance)) @ mat @ np.diag(np.exp(-balance))
