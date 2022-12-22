@@ -1,17 +1,20 @@
 import numpy as np
 from matrix_utils import rowsum, rowsum_k, colsum, colsum_k
 from itertools import cycle
-from typing import Union, Tuple
+from typing import Union, Tuple, List
 
 
 def osborne(
         mat: np.ndarray,
         epsilon: float,
         method: str,
+        history: bool = False,
 ):
     """
     Perform matrix balancing on a square matrix.
-    This does NOT check that the matrix is square
+    This does NOT check that the matrix is square.
+    This does NOT use a log-domain implementation by default (i.e. the algorithm expects a raw nonnegative matrix,
+    not the log of the target matrix).
 
     :param mat: The matrix to balance
     :param epsilon: Precision criterion
@@ -20,66 +23,87 @@ def osborne(
         * `greedy` : select the coordinate with the most descent,
         * `random-cycle` : choose random permutations to cycle through the coordinates
         * `random` : at every step, the update coordinate is chosen randomly
-    :return:
+    :param history: if True, return a history of the scalings at each step
+    :return: A vector representing the diagonal balance, and a history of increments if history=True. The history
+    is a list of tuples of the form (coordinate, increment)
     """
     if method == 'cycle':
-        return cyclic_osborne(mat, epsilon)
+        return cyclic_osborne(mat, epsilon, history)
 
     if method == 'greedy':
-        return greedy_osborne(mat, epsilon)
+        return greedy_osborne(mat, epsilon, history)
 
     if method == 'random-cycle':
-        return random_cyclic_osborne(mat, epsilon)
+        return random_cyclic_osborne(mat, epsilon, history)
 
     if method == 'random':
-        return random_osborne(mat, epsilon)
+        return random_osborne(mat, epsilon, history)
 
 
 def osborne_update(balanced_mat: np.ndarray,
                    balance: np.ndarray,
-                   coordinate: int) -> np.ndarray:
+                   coordinate: int) -> float:
+    """
+    Modifies the current balance in-place and returns the increment applied.
+    """
     r_k = rowsum_k(balanced_mat, coordinate)
     c_k = colsum_k(balanced_mat, coordinate)
-    balance[coordinate] = balance[coordinate] + \
-        0.5 * (np.log(c_k) - np.log(r_k))
+    increment = 0.5 * (np.log(c_k) - np.log(r_k))
+    balance[coordinate] = balance[coordinate] + increment
 
-    return balance
+    return increment
 
 
-def cyclic_osborne(mat: np.ndarray, epsilon: float):
+def cyclic_osborne(mat: np.ndarray, epsilon: float, history: bool):
     n = mat.shape[0]
     balance = np.zeros(n, dtype=float)
     balanced_mat = np.diag(np.exp(balance)) @ mat @ np.diag(np.exp(-balance))
+    if history:
+        balance_hist = []
 
     coord_cycle = cycle(range(n))
     while np.linalg.norm(rowsum(balanced_mat) - colsum(balanced_mat), 1) / np.sum(balanced_mat) > epsilon:
         update_coord = next(coord_cycle)
-        balance = osborne_update(balanced_mat, balance, update_coord)
+        increment = osborne_update(balanced_mat, balance, update_coord)
+        if history:
+            balance_hist.append((update_coord, increment))
         balanced_mat = np.diag(
             np.exp(balance)) @ mat @ np.diag(np.exp(-balance))
+
+    if history:
+        return balance, balance_hist
 
     return balance
 
 
-def greedy_osborne(mat: np.ndarray, epsilon: float):
+def greedy_osborne(mat: np.ndarray, epsilon: float, history: bool):
     n = mat.shape[0]
     balance = np.zeros(n, dtype=float)
     balanced_mat = np.diag(np.exp(balance)) @ mat @ np.diag(np.exp(-balance))
+    if history:
+        balance_hist = []
 
     while np.linalg.norm(rowsum(balanced_mat) - colsum(balanced_mat), 1) / np.sum(balanced_mat) > epsilon:
         update_coord = np.argmax(
             np.abs(np.sqrt(rowsum(balanced_mat)) - np.sqrt(colsum(balanced_mat))))
-        balance = osborne_update(balanced_mat, balance, update_coord)
+        increment = osborne_update(balanced_mat, balance, update_coord)
+        if history:
+            balance_hist.append((update_coord, increment))
         balanced_mat = np.diag(
             np.exp(balance)) @ mat @ np.diag(np.exp(-balance))
+
+    if history:
+        return balance, balance_hist
 
     return balance
 
 
-def random_cyclic_osborne(mat: np.ndarray, epsilon: float):
+def random_cyclic_osborne(mat: np.ndarray, epsilon: float, history: bool):
     n = mat.shape[0]
     balance = np.zeros(n, dtype=float)
     balanced_mat = np.diag(np.exp(balance)) @ mat @ np.diag(np.exp(-balance))
+    if history:
+        balance_hist = []
 
     coords = np.array(range(n), dtype=int)
     np.random.shuffle(coords)
@@ -90,24 +114,36 @@ def random_cyclic_osborne(mat: np.ndarray, epsilon: float):
             np.random.shuffle(coords)
 
         update_coord = coords[i]
-        balance = osborne_update(balanced_mat, balance, update_coord)
+        increment = osborne_update(balanced_mat, balance, update_coord)
+        if history:
+            balance_hist.append((update_coord, increment))
         balanced_mat = np.diag(
             np.exp(balance)) @ mat @ np.diag(np.exp(-balance))
         i += 1
 
+    if history:
+        return balance, balance_hist
+
     return balance
 
 
-def random_osborne(mat: np.ndarray, epsilon: float):
+def random_osborne(mat: np.ndarray, epsilon: float, history: bool):
     n = mat.shape[0]
     balance = np.zeros(n, dtype=float)
     balanced_mat = np.diag(np.exp(balance)) @ mat @ np.diag(np.exp(-balance))
+    if history:
+        balance_hist = []
 
     while np.linalg.norm(rowsum(balanced_mat) - colsum(balanced_mat), 1) / np.sum(balanced_mat) > epsilon:
         update_coord = np.random.randint(0, n)
-        balance = osborne_update(balanced_mat, balance, update_coord)
+        increment = osborne_update(balanced_mat, balance, update_coord)
+        if history:
+            balance_hist.append((update_coord, increment))
         balanced_mat = np.diag(
             np.exp(balance)) @ mat @ np.diag(np.exp(-balance))
+
+    if history:
+        return balance, balance_hist
 
     return balance
 
