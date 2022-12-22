@@ -148,6 +148,43 @@ def random_osborne(mat: np.ndarray, epsilon: float, history: bool):
     return balance
 
 
+def potential(scaling: np.ndarray, mat: np.ndarray) -> float:
+    """
+    Compute the potential associated to a given scaling and matrix.
+
+    :param scaling: the 1D-vector representing the diagonal scaling, in log-domain
+    :param mat: the matrix that is being balanced
+    :return: the potential value
+    """
+    n = mat.shape[0]
+    v = np.zeros(n * n, dtype=float)
+    for i in range(n):
+        for j in range(n):
+            v[i * n + j] = scaling[i] - scaling[j]
+
+    return np.log(np.sum(np.exp(v) * mat.flatten()))
+
+
+def potential_from_increment_history(history: List[Tuple], mat: np.ndarray) -> np.ndarray:
+    """
+    Compute the history of potentials given a history of the scalings, represented as (coordinate, increment) pairs.
+
+    :param history: increment history of the scalings through the Osborne iterations
+    :param mat: the matrix that was balanced
+    :return: a history of the values of the potential
+    """
+    n = mat.shape[0]
+    scaling = np.zeros(n, dtype=float)
+    potential_history = np.zeros(shape=len(history) + 1, dtype=float)
+    potential_history[0] = potential(scaling, mat)
+
+    for i, (update_coord, increment) in enumerate(history):
+        scaling[update_coord] = scaling[update_coord] + increment
+        potential_history[i + 1] = potential(scaling, mat)
+
+    return potential_history
+
+
 def test_osborne_variants(test_mat: Union[None, np.ndarray] = None) -> Tuple[bool, bool]:
     """
     Test the different algorithm variants : all should return the same result
