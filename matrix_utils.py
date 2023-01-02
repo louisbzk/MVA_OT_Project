@@ -97,25 +97,32 @@ def generate_matrix_from_cond(n: int, m: int, target_cond: float, scale: float =
     :param scale: scale of coefficients (they range from 0 to scale)
     :return: a matrix with m nonzero coefficients with the specified conditioning
     """
-    if target_cond <= 1.:
-        raise ValueError('Conditioning cannot be below 1')
+    if target_cond <= m:
+        raise ValueError('Conditioning cannot be less than the number of non-zeros')
 
-    nonzero_coeffs = scale * np.random.rand(m)
+    nonzero_coeffs = np.random.rand(m)
     while np.min(nonzero_coeffs) == 0.0:  # very unlikely...
-        nonzero_coeffs = scale * np.random.rand(m)
+        nonzero_coeffs = np.random.rand(m)
     min_coeff_idx = np.argmin(nonzero_coeffs)
 
     # construct the matrix
     mat = np.zeros(shape=(n, n), dtype=float)
-    nonzero_indices = np.random.choice(list(range(n * n)), m, replace=False)
+    non_diagonal_indices = list(range(n * n))
+    for i in range(n):
+        non_diagonal_indices.remove(i * n + i)
+    nonzero_indices = np.random.choice(non_diagonal_indices, m, replace=False)
     min_coeff_position = None
     for nonzero_idx, mat_idx in enumerate(nonzero_indices):
         if nonzero_idx == min_coeff_idx:
             min_coeff_position = (mat_idx // n, mat_idx % n)
         mat[mat_idx // n][mat_idx % n] = nonzero_coeffs[nonzero_idx]
 
-    # tweak conditioning
-    mat[min_coeff_position] = (np.sum(mat) - mat[min_coeff_position]) / (target_cond - 1)
+    # tweak conditioning using an additive scaling constant, then rescale using a multiplicative constant to
+    # adjust the matrix coefficients to the requested scale
+    alpha = (np.sum(mat) - target_cond * mat[min_coeff_position]) / float(target_cond - m)
+    nonzero_mask = mat != 0.0
+    mat[nonzero_mask] += alpha  # conditioning is now target_cond
+    mat = mat / np.max(mat) * scale  # rescale coefficients (conditioning is unchanged)
 
     return mat
 
