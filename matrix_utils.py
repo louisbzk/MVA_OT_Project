@@ -1,33 +1,60 @@
 import numpy as np
-from typing import Union
+from typing import Union, List
 import sys
 
 
-def rowsum(mat: np.ndarray) -> np.ndarray:
+def logsumexp(x: np.ndarray, axis: Union[int, None] = None) -> Union[np.ndarray, float]:
+    """
+    Compute log-sum-exp of x along an axis, stable numerically.
+    WARNING : only supports 1D and 2D arrays !
+
+    :param x: a vector or matrix
+    :param axis: the axis to sum along
+    :return: log(sum(exp(x))) along axis
+    """
+    xm = np.amax(x, axis, keepdims=True)  # keepdims=True ensures correct broadcasting when subtracting
+    return xm.flatten() + np.log(np.sum(np.exp(x - xm), axis))
+
+
+def rowsum(mat: np.ndarray, log_domain: bool = False) -> np.ndarray:
     """
     Compute the sum of rows of a matrix
 
     :param mat: 2D matrix
+    :param log_domain: whether the input is in log-domain or not
     :return: A vector whose i-th element is the i-th row sum of mat
     """
+    if log_domain:
+        return logsumexp(mat, axis=1)
+
     return np.sum(mat, axis=1)
 
 
-def rowsum_k(mat: np.ndarray, k: int) -> Union[float, int, np.int8, np.float64, np.ndarray]:
+def rowsum_k(mat: np.ndarray, k: int, log_domain: bool = False) -> Union[float, int, np.int8, np.float64, np.ndarray]:
+    if log_domain:
+        return logsumexp(mat[k])
+
     return np.sum(mat[k])
 
 
-def colsum(mat: np.ndarray) -> np.ndarray:
+def colsum(mat: np.ndarray, log_domain: bool = False) -> np.ndarray:
     """
     Compute the sum of columns of a matrix
 
     :param mat: 2D matrix
+    :param log_domain: whether the input is in log-domain or not
     :return: A vector whose i-th element is the i-th column sum of mat
     """
+    if log_domain:
+        return logsumexp(mat.T, axis=1)
+
     return rowsum(mat.T)
 
 
-def colsum_k(mat: np.ndarray, k: int) -> Union[float, int, np.int8, np.float64, np.ndarray]:
+def colsum_k(mat: np.ndarray, k: int, log_domain: bool = False) -> Union[float, int, np.int8, np.float64, np.ndarray]:
+    if log_domain:
+        return logsumexp(mat.T[k])
+
     return np.sum(mat.T[k])
 
 
@@ -128,6 +155,6 @@ def generate_matrix_from_cond(n: int, m: int, target_cond: float, scale: float =
 
 
 if __name__ == '__main__':
-    A = generate_matrix_from_cond(5, 21, target_cond=2, scale=100)
+    A = generate_matrix_from_cond(5, 21, target_cond=2000, scale=100)
     diam = compute_diameter(A)
     print(diam)
