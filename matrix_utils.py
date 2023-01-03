@@ -154,6 +154,40 @@ def generate_matrix_from_cond(n: int, m: int, target_cond: float, scale: float =
     return mat
 
 
+def qr_algorithm(mat: np.ndarray, tol: float = 1e-8, max_iter: int = 5000):
+    """
+    Compute eigenvalues & eigenvectors of a matrix.
+    Source : http://madrury.github.io/jekyll/update/statistics/2017/10/04/qr-algorithm.html
+    J. G. F. Francis, The QR Transformation A Unitary Analogue to the LR Transformation—Part 1,
+    The Computer Journal, Volume 4, Issue 3, 1961, Pages 265–271, https://doi.org/10.1093/comjnl/4.3.265
+
+    :param mat: the input matrix
+    :param tol: stopping criterion
+    :param max_iter: stop after this number of iterations
+    :return: an array containing the eigenvalues of mat and an array containing the corresponding eigenvectors
+    """
+    q, r = np.linalg.qr(mat)
+    previous = np.eye(len(mat))
+    for i in range(max_iter):
+        previous = previous @ q
+        x = r @ q
+        q, r = np.linalg.qr(x)
+        if np.allclose(x, np.triu(x), atol=tol):
+            break
+    else:
+        print('[WARNING] qr_algorithm did not converge')
+    return np.diagonal(x), (previous @ q).T
+
+
+def zerodiag(mat: np.ndarray) -> np.ndarray:
+    """
+    Return the same matrix with 0 on the diagonal
+    """
+    _m = mat.copy()
+    np.fill_diagonal(_m, 0.)
+    return _m
+
+
 if __name__ == '__main__':
     A = generate_matrix_from_cond(5, 21, target_cond=2000, scale=100)
     diam = compute_diameter(A)
