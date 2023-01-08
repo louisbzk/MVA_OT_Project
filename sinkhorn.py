@@ -34,6 +34,7 @@ def sinkhorn_log(mat: np.ndarray,
     log_a = np.log(a)
     log_b = np.log(b)
 
+    numerical_issue = False
     for it in range(1, max_iter + 1):
         log_u = log_a - logsumexp(mat + log_v[None, :], 1)
         log_v = log_b - logsumexp(mat + log_u[:, None], 0)
@@ -45,10 +46,14 @@ def sinkhorn_log(mat: np.ndarray,
             if np.linalg.norm(r - a, 1) + np.linalg.norm(c - b, 1) < tol:
                 break
 
+            elif np.any(np.isnan(r)) or np.any(np.isnan(c)):
+                numerical_issue = True
+                break
+
     else:
         print('[WARNING] sinkhorn_log did not converge')
 
-    return np.exp(log_u), np.exp(log_v), it
+    return np.exp(log_u), np.exp(log_v), it, numerical_issue
 
 
 def greenkhorn(cost_mat: np.ndarray,
@@ -81,6 +86,7 @@ def greenkhorn(cost_mat: np.ndarray,
     c = colsum(kernel)
     err_r, err_c = rho(a, r), rho(b, c)
 
+    numerical_issue = False
     for it in range(1, max_iter + 1):
         imax = np.argmax(err_r)
         jmax = np.argmax(err_c)
@@ -111,6 +117,10 @@ def greenkhorn(cost_mat: np.ndarray,
 
         if it % check_every == 0:
             if np.linalg.norm(r - a, 1) + np.linalg.norm(c - b, 1) < tol:
+                break
+
+            elif np.any(np.isnan(r)) or np.any(np.isnan(c)):
+                numerical_issue = True
                 break
     else:
         print('[WARNING] greenkhorn did not converge')

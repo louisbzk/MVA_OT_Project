@@ -14,6 +14,6 @@ def timeit(func: Callable, log_dict: dict):
         start = time.perf_counter()
         result = func(*args, **kwargs)
         end = time.perf_counter()
-        log_dict[func.__name__].append(end - start)
+        log_dict[func.__name__] = end - start
         return result
     return wrapper
